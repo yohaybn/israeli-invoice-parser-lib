@@ -2,15 +2,15 @@
 
 A unified, highly accurate Python parsing library for Israeli digital receipts, grocery bills, and commercial retail invoices. This library standardizes fragmented vendor payloads (including direct APIs, raw HTML, and complex Nuxt transport matrices) into a single, clean, structured Python dictionary.
 
-## Supported Retailers & Providers
+## Supported Retailers and Providers
 
 The library supports major Israeli storefronts directly or via central receipt infrastructure aggregators:
 
 *   **Rami Levy (רמי לוי)** — Native support for standard digital bills and microservice data streams.
-*   **Pairzon Engine (פיירזון)** — Dynamic resolution for short-link token routers and partner store layouts (e.g., **Yohananof (יוחננוף)**, **Osher Ad (אושר עד)**, **Max Stock (מקס סטוק)**, etc.).
-*   **Weezmo / Wee.ai Infrastructure** — Multi-brand validation supporting high-street retail setups, fashion entities (**TopTen**, **Tamnun**), and grocery gateways.
+*   **Weezmo / Wee.ai Infrastructure** — Multi-brand validation supporting grocery gateways like **Yohananof (יוחננוף)**, high-street retail setups, and fashion entities (**TopTen**, **Tamnun**).
+*   **Pairzon Engine (פיירזון)** — Dynamic resolution for short-link token routers and partner store layouts (e.g., **Osher Ad (אושר עד)**, **Max Stock (מקס סטוק)**, etc.).
 
-> ⚠️ **Current Limitations:** Automated extraction for **Shufersal (שופרסל)** invoices is currently broken or unmapped due to recent structure changes. We are actively looking for contributors or sample inputs to restore this!
+> **Current Limitations:** Automated extraction for **Shufersal (שופרסל)** invoices is currently blocked. The endpoint uses robust bot-protection / WAF rules that reject standard programmatic requests. We are actively trying to figure out how to bypass or properly emulate browser signatures to restore this functionality. Contributions or ideas on this technical issue are highly appreciated!
 
 ---
 
@@ -20,15 +20,17 @@ Install the package via `pip`:
 
 ```bash
 pip install israel-invoice-parser
+
 ```
 
 ---
 
-## Quick Start & Usage Examples
+## Quick Start and Usage Examples
 
 Every parser inherits from a common interface (`BaseReceiptParser`) and returns a standardized data model, making it simple to process invoices interchangeably.
 
 ### 1. Parsing a Rami Levy URL
+
 ```python
 from invoice_parser import RamiLevyParser
 
@@ -46,24 +48,28 @@ print(f"Date: {receipt['date']} at {receipt['time']}")
 
 for item in receipt['items']:
     print(f" - {item['description']}: ₪{item['final_price']} (Qty: {item['quantity_or_weight']})")
+
 ```
 
-### 2. Parsing a Pairzon Provider Short-Link (e.g., Yohananof / Osher Ad)
+### 2. Parsing a Weezmo / Wee.ai Provider Short-Link (e.g., Yohananof)
+
 ```python
-from invoice_parser import PairzonParser
+from invoice_parser import WeezmoParser
 
-parser = PairzonParser()
+parser = WeezmoParser()
 
-# Works with central Pairzon tracking tokens or short links
-pairzon_url = "https://pzn.io/r/v123abcd" 
-receipt = parser.parse(pairzon_url)
+# Works with central wee.ai tracking tokens or short links
+weezmo_url = "https://wee.ai/r/v123abcd" 
+receipt = parser.parse(weezmo_url)
 
 # The parser dynamically extracts real corporate metadata to identify the sub-brand
-print(f"Identified Brand: {receipt['store_name']}")  # e.g., 'יוחננוף' or 'אושר עד'
+print(f"Identified Brand: {receipt['store_name']}")  # e.g., 'יוחננוף'
 print(f"Legal Business ID: {receipt['company_legal_id']}")
+
 ```
 
 ### 3. Standardized Output Format Matrix
+
 Regardless of which vendor parser is called, the output dictionary always complies with the following layout structure:
 
 ```python
@@ -97,26 +103,31 @@ Regardless of which vendor parser is called, the output dictionary always compli
         }
     ]
 }
+
 ```
 
 ---
 
-## 🤝 Contributing & Helping Out
+## Contributing and Helping Out
 
 Parsing real-world digital invoices is a game of cat-and-mouse as retailers update their internal schemas. We need your help to make this library resilient!
 
 ### Have an Unsupported Receipt / Found a Bug?
-If you run into an invoice that fails to parse (such as **Shufersal** or a newly formatted receipt):
-1. [Open a New Issue](https://github.com/yourusername/israeli-invoice-parser/issues) on GitHub.
-2. Provide a **link to the invoice** or the raw anonymized data payload.
-3. We will inspect the network footprint and write/update a parser for it!
+
+If you run into an invoice that fails to parse (such as **Shufersal** or a newly formatted receipt Layout):
+
+1. Open a New Issue on the [israeli-invoice-parser-lib Bug Tracker](https://github.com/yohaybn/israeli-invoice-parser-lib/issues).
+2. **Crucial:** Provide a **real, live link to the invoice**. Without a working URL, it is impossible to inspect the underlying network payload structure, test backend responses, or map out the necessary payload parameters.
+3. If you have suggestions or workarounds for bypassing Shufersal's anti-bot restrictions, please detail them inside the dedicated discussion issues!
 
 ### Want to Add a New Parser?
+
 We warmly welcome pull requests! To contribute a new parser:
+
 1. Subclass `BaseReceiptParser` from `base_parser.py`.
 2. Implement the `.parse(self, source_data: str) -> Dict[str, Any]` method.
 3. Map the data cleanly into our uniform dictionary format.
-4. Submit a PR!
+4. Submit your PR directly to the [GitHub Repository](https://github.com/yohaybn/israeli-invoice-parser-lib/).
 
 ---
 
