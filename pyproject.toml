@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "israeli-invoice-parser"  
+version = "0.1.0"
+authors = [
+    { name = "Yohay Cohen", email = "yohaybn@gmail.com" }
+]
+description = "A unified parsing library for Israeli digital grocery and retail receipts"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "beautifulsoup4>=4.12.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yohaybn/israeli-invoice-parser-lib"
+"Bug Tracker" = "https://github.com/yohaybn/israeli-invoice-parser-lib/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
