@@ -1,4 +1,4 @@
-# israel-invoice-parser
+# israeli-invoice-parser
 
 A unified, highly accurate Python parsing library for Israeli digital receipts, grocery bills, and commercial retail invoices. This library standardizes fragmented vendor payloads (including direct APIs, raw HTML, and complex Nuxt transport matrices) into a single, clean, structured Python dictionary.
 
