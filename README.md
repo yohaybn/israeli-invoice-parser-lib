@@ -32,7 +32,7 @@ Every parser inherits from a common interface (`BaseReceiptParser`) and returns 
 ### 1. Parsing a Rami Levy URL
 
 ```python
-from invoice_parser import RamiLevyParser
+from israeli_invoice_parser import RamiLevyParser
 
 # Initialize the dedicated parser
 parser = RamiLevyParser()
@@ -54,7 +54,7 @@ for item in receipt['items']:
 ### 2. Parsing a Weezmo / Wee.ai Provider Short-Link (e.g., Yohananof)
 
 ```python
-from invoice_parser import WeezmoParser
+from israeli_invoice_parser import WeezmoParser
 
 parser = WeezmoParser()
 
