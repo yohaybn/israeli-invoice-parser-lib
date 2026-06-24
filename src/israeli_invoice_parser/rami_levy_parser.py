@@ -13,7 +13,7 @@ logger = logging.getLogger("RamiLevyParser")
 
 class RamiLevyParser(BaseReceiptParser):
     def __init__(self) -> None:
-        super().__init__(store_name="Rami Levy")
+        super().__init__(store_name="רמי לוי")
 
     def parse(self, source_data: str) -> Dict[str, Any]:
         html_content = ""
