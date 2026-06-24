@@ -122,7 +122,7 @@ class RamiLevyParser(BaseReceiptParser):
                 "customer_name": str(receipt_core.get("customer", {}).get("name", "")).strip() or None,
                 "date": formatted_date,
                 "time": time_part[:8],
-                "receipt_id": str(receipt_core.get("transaction_id", receipt_core.get("id", ""))),
+                "receipt_id": token,
                 "total_paid": float(payment_core.get("total", receipt_core.get("total", 0.0))),
                 "vat_rate": float(receipt_core.get("vat_rate", 18.0)),
                 "total_vat_paid": float(payment_core.get("total_vat", 0.0)),

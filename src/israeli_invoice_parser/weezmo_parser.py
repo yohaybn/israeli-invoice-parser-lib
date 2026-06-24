@@ -122,7 +122,7 @@ class WeezmoParser(BaseReceiptParser):
                 "customer_name": str(payload.get("loyalName", "")).strip() or None,
                 "date": formatted_date,
                 "time": time_part[:8],
-                "receipt_id": str(payload.get("transactionNumber", payload.get("id", ""))),
+                "receipt_id": receipt_token,
                 "total_paid": float(payload.get("total", 0.0)),
                 "vat_rate": float(payload.get("vat", 17.0)),
                 "total_vat_paid": float(payload.get("vatTotal", 0.0)),

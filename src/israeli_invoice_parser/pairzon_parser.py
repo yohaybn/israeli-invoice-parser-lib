@@ -135,7 +135,7 @@ class PairzonParser(BaseReceiptParser):
                 "customer_name": payload.get("cashierName", "").strip() or None,
                 "date": formatted_date,
                 "time": time_part[:8],
-                "receipt_id": str(payload.get("transactionID", payload.get("id", ""))),
+                "receipt_id": doc_id,
                 "total_paid": float(payload.get("total", 0.0)),
                 "vat_rate": float(payload.get("Vat", 17.0)),
                 "total_vat_paid": float(payload.get("totalVat", 0.0)),
