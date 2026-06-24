@@ -72,9 +72,10 @@ print(f"Legal Business ID: {receipt['company_legal_id']}")
 
 Regardless of which vendor parser is called, the output dictionary always complies with the following layout structure:
 
-```python
+```json
 {
     "store_name": "רמי לוי",
+    "pdf_url": "https://digi.rami-levy.co.il/api/receipts/xyz/pdf",
     "company_legal_id": "513770669",
     "branch_name": "סניף תל אביב",
     "store_address": "דרך מנחם בגין 123",
