@@ -87,11 +87,7 @@ class PairzonParser(BaseReceiptParser):
                 data_req = urllib.request.Request(api_url, headers=headers)
                 with urllib.request.urlopen(data_req, timeout=15) as response:
                     raw_json = response.read().decode('utf-8')
-                    
-                os.makedirs("temp", exist_ok=True)
-                with open("temp/pairzon_generic_raw.json", "w", encoding="utf-8") as f:
-                    f.write(raw_json)
-                    
+              
             except urllib.error.HTTPError as http_err:
                 error_body = http_err.read().decode('utf-8', errors='ignore')[:500]
                 logger.error(f"Pairzon backend connection returned error code ({http_err.code}). Payload: {error_body}")
@@ -131,6 +127,7 @@ class PairzonParser(BaseReceiptParser):
             
             unified_receipt: Dict[str, Any] = {
                 "store_name": self.store_name,
+                "pdf_url": f"https://pdf.pairzon.com/pdf/{doc_id}/{pin_id}",
                 "company_legal_id": str(biz_info.get("companyLeagalId", payload.get("businessID", "513461053"))),
                 "branch_name": store_info.get("name", "סניף כללי").strip(),
                 "store_address": store_info.get("address", "").strip() or biz_info.get("address", "").strip(),

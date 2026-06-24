@@ -1,3 +1,6 @@
 .venv
 dist
 src/israeli_invoice_parser.egg-info
+__pycache__
+
+test.py

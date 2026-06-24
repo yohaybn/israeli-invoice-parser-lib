@@ -69,9 +69,6 @@ class WeezmoParser(BaseReceiptParser):
                 with urllib.request.urlopen(api_req, timeout=10) as response:
                     raw_json = response.read().decode('utf-8')
 
-                os.makedirs("temp", exist_ok=True)
-                with open("temp/weezmo_generic_raw.json", "w", encoding="utf-8") as f:
-                    f.write(raw_json)
 
             except urllib.error.HTTPError as http_err:
                 logger.error(f"Weezmo engine connection exception: {http_err.code}")
@@ -117,6 +114,7 @@ class WeezmoParser(BaseReceiptParser):
 
             unified_receipt: Dict[str, Any] = {
                 "store_name": self.store_name,
+                "pdf_url": f"https://receipts.weezmo.com/api/receipts/signed/{receipt_token}/download",
                 "company_legal_id": str(branch_info.get("vatNumber", payload.get("businessID", "515136893"))),
                 "branch_name": str(branch_info.get("branchName", "סניף כללי")).strip(),
                 "store_address": str(branch_info.get("branchAddress", "")).strip(),
@@ -177,4 +175,3 @@ class WeezmoParser(BaseReceiptParser):
 
         except Exception as ex:
             logger.error(f"Error mapping Weezmo dynamic parameters: {ex}")
-            raise ex

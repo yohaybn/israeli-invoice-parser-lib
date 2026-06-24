@@ -22,6 +22,7 @@ class RamiLevyParser(BaseReceiptParser):
             try:
                 # Clean and identify short links vs direct data resources
                 target_url = source_data.strip()
+                token = target_url.split('/')[-1]
                 logger.info(f"Downloading live Rami Levy content context: {target_url}")
                 
                 # Emulate a complete browser identity to step through security filters
@@ -37,11 +38,7 @@ class RamiLevyParser(BaseReceiptParser):
                 with urllib.request.urlopen(req, timeout=15) as response:
                     html_content = response.read().decode('utf-8')
                     
-                # Save data backup trace locally for evaluation
-                os.makedirs("temp", exist_ok=True)
-                with open("temp/rami_levy_raw_page.html", "w", encoding="utf-8") as f:
-                    f.write(html_content)
-                    
+              
             except urllib.error.HTTPError as http_err:
                 logger.error(f"Rami Levy gateway connection dropped (HTTP {http_err.code})")
                 raise ValueError(f"נכשל חיבור לשרת רמי לוי. קוד שגיאה: {http_err.code}")
@@ -63,39 +60,14 @@ class RamiLevyParser(BaseReceiptParser):
                 
                 if nuxt_script:
                     raw_json_text = nuxt_script.string if nuxt_script.string else nuxt_script.text
-            
-            # 2. API Fallback Flow (If Nuxt text blocks are missing or encoded)
-            if not raw_json_text.strip():
-                logger.info("Script extraction returned empty text. Attempting API transformation route...")
-                # Extract the token directly out of the URL path (e.g. /0fFlup4Bp5Iw_ikNn9ZU)
-                url_path = urlparse(source_data).path if source_data.startswith("http") else ""
-                token_match = re.search(r'/([^/]+)$', url_path)
-                
-                if token_match:
-                    token = token_match.group(1)
-                    # Query Rami Levy's microservice data endpoint directly 
-                    api_fallback_url = f"https://api-digi.rami-levy.co.il/api/v1/receipts/{token}"
-                    logger.info(f"Querying production backup data endpoint: {api_fallback_url}")
-                    
-                    api_headers = {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                        'Accept': 'application/json'
-                    }
-                    fallback_req = urllib.request.Request(api_fallback_url, headers=api_headers)
-                    with urllib.request.urlopen(fallback_req, timeout=15) as fallback_res:
-                        raw_json_text = fallback_res.read().decode('utf-8')
-                else:
-                    raise ValueError("Could not extract document tracking tokens from provided link layout.")
-
+           
+           
             if not raw_json_text.strip():
                 raise ValueError("Rami Levy parsing sequence generated an empty payload text string.")
 
             raw_payload = json.loads(raw_json_text.strip())
 
-            # Backup uncompressed JSON objects locally
-            with open("temp/rami_levy_raw.json", "w", encoding="utf-8") as f:
-                json.dump(raw_payload, f, ensure_ascii=False, indent=2)
-
+           
             # Initialize hydration pipeline
             # If the payload is from the backup direct API, it will already be unflattened.
             # If it's standard Nuxt transport text, use index 5 to expand the root data trees.
@@ -142,6 +114,7 @@ class RamiLevyParser(BaseReceiptParser):
 
             unified_receipt: Dict[str, Any] = {
                 "store_name": self.store_name,
+                "pdf_url": f"https://digi.rami-levy.co.il/api/receipts/{token}/pdf",
                 "company_legal_id": str(company_info.get("tax_id", receipt_core.get("business_id", "513770669"))),
                 "branch_name": str(branch_info.get("name", "רמי לוי סניף")).strip(),
                 "store_address": str(company_info.get("address", "")).strip(),
