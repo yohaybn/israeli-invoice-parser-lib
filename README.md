@@ -17,7 +17,6 @@ The library supports major Israeli storefronts directly or via central receipt i
 > **Current Limitations:** Automated extraction for **Shufersal (שופרסל)** invoices is currently blocked. The endpoint uses robust bot-protection / WAF rules that reject standard programmatic requests. We are actively trying to figure out how to bypass or properly emulate browser signatures to restore this functionality. Contributions or ideas on this technical issue are highly appreciated!
 
 ---
----
 
 ## Installation
 
@@ -34,7 +33,32 @@ pip install israel-invoice-parser
 
 Every parser inherits from a common interface (`BaseReceiptParser`) and returns a standardized data model, making it simple to process invoices interchangeably.
 
-### 1. Parsing a Rami Levy URL
+### 1. Automatic Provider Identification (Recommended)
+
+You don't need to know which provider generated the invoice link beforehand. Use the `ReceiptParserFactory` to auto-detect the domain signature, instantiate the correct parser, and execute the parse lifecycle automatically.
+
+```python
+from israeli_invoice_parser import ReceiptParserFactory
+
+# Provide any supported link (Rami Levy, Comax, Weezmo, Pairzon)
+unknown_url = "http://sms.comax.co.il/G/E/aaaaaaassssssdddddggggg"
+
+# The factory inspects the signature domain and returns a uniform dictionary response
+receipt = ReceiptParserFactory.parse_automatically(unknown_url)
+
+if receipt:
+    print(f"Auto-Detected Store: {receipt['store_name']}")
+    print(f"Total Paid: ₪{receipt['total_paid']}")
+else:
+    print("Provider signature could not be identified automatically.")
+
+```
+
+### 2. Manual/Explicit Parser Initialization
+
+If you already know the invoice source provider, you can bypass the factory routing matrix and initialize your target provider parser class explicitly:
+
+#### Parsing a Rami Levy URL
 
 ```python
 from israeli_invoice_parser import RamiLevyParser
@@ -46,17 +70,12 @@ parser = RamiLevyParser()
 url = "https://api-digi.rami-levy.co.il/api/v1/receipts/example-token-12345"
 receipt = parser.parse(url)
 
-# Access standardized fields uniformly
 print(f"Store: {receipt['store_name']}")
 print(f"Total Paid: ₪{receipt['total_paid']}")
-print(f"Date: {receipt['date']} at {receipt['time']}")
-
-for item in receipt['items']:
-    print(f" - {item['description']}: ₪{item['final_price']} (Qty: {item['quantity_or_weight']})")
 
 ```
 
-### 2. Parsing a Weezmo / Wee.ai Provider Short-Link (e.g., Yohananof)
+#### Parsing a Weezmo / Wee.ai Provider Short-Link (e.g., Yohananof)
 
 ```python
 from israeli_invoice_parser import WeezmoParser
@@ -97,11 +116,11 @@ Regardless of which vendor parser is called, the output dictionary always compli
         {
             "description": "חלב תנובה 3%",
             "barcode": "7290000042431",
-            "is_by_weight": False,
+            "is_by_weight": false,
             "quantity_or_weight": 2.0,
             "unit_price": 6.50,
             "original_total_price": 13.00,
-            "is_part_of_deal": True,
+            "is_part_of_deal": true,
             "deal_text": "2 ב-₪11",
             "discount_amount": 2.00,
             "final_price": 11.00,
@@ -132,8 +151,9 @@ We warmly welcome pull requests! To contribute a new parser:
 
 1. Subclass `BaseReceiptParser` from `base_parser.py`.
 2. Implement the `.parse(self, source_data: str) -> Dict[str, Any]` method.
-3. Map the data cleanly into our uniform dictionary format.
-4. Submit your PR directly to the [GitHub Repository](https://github.com/yohaybn/israeli-invoice-parser-lib/).
+3. Register your signature pattern domain mapping inside the `_PROVIDER_REGISTRY` matrix found inside `factory.py`.
+4. Map the data cleanly into our uniform dictionary format.
+5. Submit your PR directly to the [GitHub Repository](https://github.com/yohaybn/israeli-invoice-parser-lib/).
 
 ---
 
