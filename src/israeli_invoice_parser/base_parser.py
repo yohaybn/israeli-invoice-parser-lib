@@ -8,7 +8,8 @@ class BaseReceiptParser(ABC):
     @abstractmethod
     def parse(self, source_data: str) -> Dict[str, Any]:
         pass
-
+    def get_parser_name(self) -> str:
+        return self.__class__.__name__
 class NuxtDataHydrator:
     """
     Decompresses multi-type transport data matrices from Nuxt 3 back 
