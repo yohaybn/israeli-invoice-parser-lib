@@ -10,62 +10,78 @@ from .base_parser import BaseReceiptParser
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("WeezmoParser")
 
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Connection': 'close' # Explicitly close the connection to prevent hanging sockets
+}
+
 class WeezmoParser(BaseReceiptParser):
     def __init__(self) -> None:
         super().__init__(store_name="Weezmo Provider")
 
+    def get_receipt_id(self,url: str):
+        base_url = url.strip()
+        # Modern browser header signature matrix to prevent WAF socket hanging
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Connection': 'close' # Explicitly close the connection to prevent hanging sockets
+        }
+        parsed_url = urlparse(base_url)
+        queries = parse_qs(parsed_url.query)
+        
+        receipt_token = queries.get("q", [None])[0]
+        # If it's a short link (wee.ai), catch the 302 redirect location header
+        if not receipt_token and "wee.ai" in base_url:
+            logger.info("Intercepting wee.ai short-link redirection matrix...")
+            
+            class InterceptRedirectHandler(urllib.request.HTTPRedirectHandler):
+                def http_error_302(self, req, fp, code, msg, headers):
+                    return fp
+            
+            # Build opener with low fallback timeouts
+            opener = urllib.request.build_opener(InterceptRedirectHandler())
+            req = urllib.request.Request(base_url, headers=HEADERS)
+            
+            with opener.open(req, timeout=8) as response:
+                redirect_location = response.headers.get('Location', '')
+                if redirect_location:
+                    # Safely handle both absolute and relative paths (/cms.html?q=...)
+                    if not redirect_location.startswith('http'):
+                        redirect_location = urljoin(base_url, redirect_location)
+                        
+                    logger.info(f"Redirection resolved to target landing: {redirect_location}")
+                    parsed_redirect = urlparse(redirect_location)
+                    redirect_queries = parse_qs(parsed_redirect.query)
+                    receipt_token = redirect_queries.get("q", [None])[0]
+
+        if not receipt_token:
+            raise ValueError("Could not extract a valid query token 'q' from the Weezmo link framework.")
+
+        return receipt_token    
+
+    def get_pdf_receipt_bytes(self, url: str) -> bytes:
+        token=self.get_receipt_id(url)
+        
+        pdf_url=f"https://receipts.weezmo.com/api/receipts/signed/{token}/download"
+        logger.info(f"Downloading Weezmo PDF receipt from: {pdf_url}")
+        pdf_bytes=urllib.request.urlopen(pdf_url)
+        return pdf_bytes.read()
+        
     def parse(self, source_data: str) -> Dict[str, Any]:
         raw_json: str = ""
 
         if source_data.startswith("http://") or source_data.startswith("https://"):
             try:
-                base_url = source_data.strip()
-                
-                # Modern browser header signature matrix to prevent WAF socket hanging
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/json, text/plain, */*',
-                    'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
-                    'Connection': 'close' # Explicitly close the connection to prevent hanging sockets
-                }
-
-                parsed_url = urlparse(base_url)
-                queries = parse_qs(parsed_url.query)
-                
-                receipt_token = queries.get("q", [None])[0]
-
-                # If it's a short link (wee.ai), catch the 302 redirect location header
-                if not receipt_token and "wee.ai" in base_url:
-                    logger.info("Intercepting wee.ai short-link redirection matrix...")
-                    
-                    class InterceptRedirectHandler(urllib.request.HTTPRedirectHandler):
-                        def http_error_302(self, req, fp, code, msg, headers):
-                            return fp
-
-                    # Build opener with low fallback timeouts
-                    opener = urllib.request.build_opener(InterceptRedirectHandler())
-                    req = urllib.request.Request(base_url, headers=headers)
-                    
-                    with opener.open(req, timeout=8) as response:
-                        redirect_location = response.headers.get('Location', '')
-                        if redirect_location:
-                            # Safely handle both absolute and relative paths (/cms.html?q=...)
-                            if not redirect_location.startswith('http'):
-                                redirect_location = urljoin(base_url, redirect_location)
-                                
-                            logger.info(f"Redirection resolved to target landing: {redirect_location}")
-                            parsed_redirect = urlparse(redirect_location)
-                            redirect_queries = parse_qs(parsed_redirect.query)
-                            receipt_token = redirect_queries.get("q", [None])[0]
-
-                if not receipt_token:
-                    raise ValueError("Could not extract a valid query token 'q' from the Weezmo link framework.")
-
+                receipt_token=self.get_receipt_id(source_data)
                 api_url = f"https://receipts.weezmo.com/api/receipts/{receipt_token}"
                 logger.info(f"Targeting Weezmo data provider gateway: {api_url}")
 
                 # Download the target stream with an explicit socket timeout trigger (10 seconds max)
-                api_req = urllib.request.Request(api_url, headers=headers)
+                api_req = urllib.request.Request(api_url, headers=HEADERS)
                 with urllib.request.urlopen(api_req, timeout=10) as response:
                     raw_json = response.read().decode('utf-8')
 

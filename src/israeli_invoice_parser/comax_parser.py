@@ -3,7 +3,6 @@ import re
 import urllib.error
 import urllib.request
 from typing import Any, Dict
-from urllib.parse import parse_qs, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -31,6 +30,7 @@ class ComaxParser(BaseReceiptParser):
         text = text.replace("&nbsp", " ").replace("\xa0", " ")
         return " ".join(text.split())
 
+    
     def parse(self, source_data: str) -> Dict[str, Any]:
         raw_html: str = ""
 
@@ -233,3 +233,6 @@ class ComaxParser(BaseReceiptParser):
             i += 1
 
         return unified_receipt
+
+
+    

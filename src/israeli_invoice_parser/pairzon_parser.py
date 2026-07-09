@@ -10,81 +10,95 @@ from .base_parser import BaseReceiptParser
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("PairzonParser")
 
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7'
+}
+
+
 class PairzonParser(BaseReceiptParser):
     def __init__(self) -> None:
         # Initialize with a flexible placeholder; we will dynamically 
         # override self.store_name based on the receipt's real corporate metadata.
         super().__init__(store_name="Pairzon Provider")
 
+    def get_document_ids(self,url: str):
+        parsed_url = urlparse(url.strip())
+        queries = parse_qs(parsed_url.query)
+        
+        doc_id = queries.get("id", [None])[0]
+        pin_id = queries.get("p", [None])[0]
+                    
+        headers = HEADERS 
+        # Custom handler to block automatic 302 jumps so we can catch short-links gracefully
+        class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+            def http_error_302(self, req, fp, code, msg, headers):
+                return fp
+
+        opener = urllib.request.build_opener(NoRedirectHandler())
+
+        # 1. Coordinate Extraction (Direct Parameters vs Short-Link Token Routing)
+        if doc_id and pin_id:
+            api_url = f"https://{parsed_url.netloc}/v1.0/documents/{doc_id}?p={pin_id}"
+        else:
+            logger.info("Processing standard short-link sequence. Resolving internal payload routing...")
+            path_parts = [p for p in parsed_url.path.split('/') if p]
+        if len(path_parts) < 2:
+            raise ValueError("The provided Pairzon short-link route structure is invalid or missing paths.")
+        prefix = path_parts[0]
+        token = path_parts[1]
+                    
+        # Target Pairzon's centralized cross-brand mapping api
+        link_lookup_url = f"https://{parsed_url.netloc}/v1.0/links/{prefix}/{token}"
+        logger.info(f"Querying endpoint metadata resolver: {link_lookup_url}")
+                    
+        lookup_req = urllib.request.Request(link_lookup_url, headers=headers)
+        try:
+            with urllib.request.urlopen(lookup_req, timeout=15) as lookup_res:
+                lookup_data = json.loads(lookup_res.read().decode('utf-8'))
+                if isinstance(lookup_data, dict) and "data" in lookup_data:
+                    lookup_data = lookup_data["data"]
+                            
+                doc_id = lookup_data.get("documentId") or lookup_data.get("id")
+                pin_id = lookup_data.get("prefix") or prefix
+        except Exception as e:
+            logger.warning(f"Metadata link API resolution dropped ({e}). Trying 302 header interception loop...")
+                        
+            req = urllib.request.Request(url, headers=headers)
+            with opener.open(req, timeout=15) as response:
+                redirect_location = response.headers.get('Location', '')
+                if redirect_location:
+                    parsed_redirect = urlparse(redirect_location)
+                    redirect_queries = parse_qs(parsed_redirect.query)
+                    doc_id = redirect_queries.get("id", [None])[0]
+                    pin_id = redirect_queries.get("p", [None])[0]
+        return doc_id, pin_id
+
+
+    def get_pdf_receipt_bytes(self, url: str) -> bytes:
+        logger.info(f"url: {url}") 
+        doc_id, pin_id = self.get_document_ids(url)
+        pdf_url=f"https://pdf.pairzon.com/pdf/{doc_id}/{pin_id}"
+        logger.info(f"Downloading Pairzon PDF receipt from: {pdf_url}") 
+        pdf_bytes=urllib.request.urlopen(pdf_url)
+        return pdf_bytes.read()
+
     def parse(self, source_data: str) -> Dict[str, Any]:
         raw_json: str = ""
 
         if source_data.startswith("http://") or source_data.startswith("https://"):
             try:
+                doc_id, pin_id = self.get_document_ids(source_data)
                 parsed_url = urlparse(source_data.strip())
-                queries = parse_qs(parsed_url.query)
-                
-                doc_id = queries.get("id", [None])[0]
-                pin_id = queries.get("p", [None])[0]
-                
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/json, text/plain, */*',
-                    'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7'
-                }
-                
-                # Custom handler to block automatic 302 jumps so we can catch short-links gracefully
-                class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
-                    def http_error_302(self, req, fp, code, msg, headers):
-                        return fp
-
-                opener = urllib.request.build_opener(NoRedirectHandler())
-
-                # 1. Coordinate Extraction (Direct Parameters vs Short-Link Token Routing)
                 if doc_id and pin_id:
                     api_url = f"https://{parsed_url.netloc}/v1.0/documents/{doc_id}?p={pin_id}"
                 else:
-                    logger.info("Processing standard short-link sequence. Resolving internal payload routing...")
-                    path_parts = [p for p in parsed_url.path.split('/') if p]
-                    if len(path_parts) < 2:
-                        raise ValueError("The provided Pairzon short-link route structure is invalid or missing paths.")
-                    
-                    prefix = path_parts[0]
-                    token = path_parts[1]
-                    
-                    # Target Pairzon's centralized cross-brand mapping api
-                    link_lookup_url = f"https://{parsed_url.netloc}/v1.0/links/{prefix}/{token}"
-                    logger.info(f"Querying endpoint metadata resolver: {link_lookup_url}")
-                    
-                    lookup_req = urllib.request.Request(link_lookup_url, headers=headers)
-                    try:
-                        with urllib.request.urlopen(lookup_req, timeout=15) as lookup_res:
-                            lookup_data = json.loads(lookup_res.read().decode('utf-8'))
-                            if isinstance(lookup_data, dict) and "data" in lookup_data:
-                                lookup_data = lookup_data["data"]
-                            
-                            doc_id = lookup_data.get("documentId") or lookup_data.get("id")
-                            pin_id = lookup_data.get("prefix") or prefix
-                    except Exception as e:
-                        logger.warning(f"Metadata link API resolution dropped ({e}). Trying 302 header interception loop...")
-                        
-                        req = urllib.request.Request(source_data, headers=headers)
-                        with opener.open(req, timeout=15) as response:
-                            redirect_location = response.headers.get('Location', '')
-                            if redirect_location:
-                                parsed_redirect = urlparse(redirect_location)
-                                redirect_queries = parse_qs(parsed_redirect.query)
-                                doc_id = redirect_queries.get("id", [None])[0]
-                                pin_id = redirect_queries.get("p", [None])[0]
-
-                    if doc_id and pin_id:
-                        api_url = f"https://{parsed_url.netloc}/v1.0/documents/{doc_id}?p={pin_id}"
-                    else:
-                        raise ValueError("Failed to extract backend parameters from token signature.")
+                    raise ValueError("Failed to extract backend parameters from token signature.")
 
                 # 2. Complete Transaction JSON Fetch
                 logger.info(f"Targeting active data stream gateway: {api_url}")
-                data_req = urllib.request.Request(api_url, headers=headers)
+                data_req = urllib.request.Request(api_url, headers=HEADERS)
                 with urllib.request.urlopen(data_req, timeout=15) as response:
                     raw_json = response.read().decode('utf-8')
               

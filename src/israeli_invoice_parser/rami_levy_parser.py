@@ -15,6 +15,24 @@ class RamiLevyParser(BaseReceiptParser):
     def __init__(self) -> None:
         super().__init__(store_name="רמי לוי")
 
+
+    def get_pdf_receipt_bytes(self, url: str) -> bytes:
+        token = url.split('/')[-1]
+        pdf_url=f"https://digi.rami-levy.co.il/api/receipts/{token}/pdf"
+        logger.info(f"Downloading Rami Levy PDF receipt from: {pdf_url}")
+       
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+                }
+        req = urllib.request.Request(pdf_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as response:
+            pdf_bytes=response.read()
+        return pdf_bytes
+
     def parse(self, source_data: str) -> Dict[str, Any]:
         html_content = ""
 

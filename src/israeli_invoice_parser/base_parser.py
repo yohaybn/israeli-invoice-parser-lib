@@ -1,13 +1,22 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
+import urllib.request
+import logging
 
+logger = logging.getLogger(__name__)
 class BaseReceiptParser(ABC):
     def __init__(self, store_name: str) -> None:
         self.store_name: str = store_name
 
     @abstractmethod
-    def parse(self, source_data: str) -> Dict[str, Any]:
+    def parse(self, url: str) -> Dict[str, Any]:
         pass
+
+    def get_pdf_receipt_bytes(self, url: str) -> bytes:
+        invoice=self.parse(url)
+        logger.info(f"Downloading {self.store_name} PDF receipt from: {invoice['pdf_url']}")
+        pdf_bytes=urllib.request.urlopen(invoice["pdf_url"])
+        return pdf_bytes.read()
     def get_parser_name(self) -> str:
         return self.__class__.__name__
 class NuxtDataHydrator:

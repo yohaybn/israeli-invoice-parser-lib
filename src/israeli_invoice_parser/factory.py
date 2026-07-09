@@ -7,7 +7,8 @@ from .comax_parser import ComaxParser
 from .pairzon_parser import PairzonParser
 from .rami_levy_parser import RamiLevyParser
 from .weezmo_parser import WeezmoParser
-
+from .payper_parser import PayperParser
+from .cellcom_parser import CellcomParser
 logger = logging.getLogger("InvoiceParserFactory")
 
 
@@ -19,6 +20,8 @@ class ReceiptParserFactory:
         "wee.ai": WeezmoParser,
         "weezmo.com": WeezmoParser,
         "comax.co.il": ComaxParser,
+        "payper.co.il": PayperParser,
+        "cellcom.co.il":CellcomParser,
     }
 
     @classmethod
