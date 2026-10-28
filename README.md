@@ -133,6 +133,44 @@ Regardless of which vendor parser is called, the output dictionary always compli
 
 ---
 
+## Barcode Normalization (new in 0.2.0)
+
+Receipts print the same product code in different spellings: with or without leading zeros, UPC-A (12 digits) or
+EAN-13, EAN-8, a chain's short internal code (e.g. `41445`), or an in-store scale label that starts with `2` and has
+the price or the weight inside. Every parser now adds these keys to each item, **next to** the original `barcode`
+(nothing existing changes, so 0.1.x code keeps working):
+
+| key | meaning |
+|---|---|
+| `barcode_normalized` | digits only, leading zeros stripped — compare this across receipts and price files |
+| `barcode_kind` | `gtin13` \| `gtin8` \| `upc12` \| `gtin14` \| `weighed` \| `internal` (short or non-GS1 code) \| `null` |
+| `barcode_gtin13` | 13-digit form of a real GTIN (UPC-A / EAN-8 zero-padded), else `null` |
+| `barcode_check_digit_valid` | GS1 check digit is correct (`false` for internal codes) |
+| `weighed_item_code` | scale labels only: the item (PLU) part |
+| `weighed_embedded_value` | scale labels only: the 5 digits before the check digit, as printed |
+| `weighed_embedded_kind` | `price` (agorot) or `weight` (grams) when the line's own amounts confirm it, else `null` |
+
+```python
+from israeli_invoice_parser import describe_barcode, classify
+
+describe_barcode("036000291452")
+# {'barcode_normalized': '36000291452', 'barcode_kind': 'upc12', 'barcode_gtin13': '0036000291452',
+#  'barcode_check_digit_valid': True, 'weighed_item_code': None, ...}
+classify("41445")   # 'internal' - a chain's own code: match it against that chain's price file
+```
+
+The library never looks a code up: matching an `internal` code to a product (e.g. a chain's padding rule) belongs to
+the caller's price database.
+
+### Running the tests
+
+```bash
+pip install pytest
+PYTHONPATH=src pytest tests
+```
+
+---
+
 ## Contributing and Helping Out
 
 Parsing real-world digital invoices is a game of cat-and-mouse as retailers update their internal schemas. We need your help to make this library resilient!
