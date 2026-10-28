@@ -1,12 +1,27 @@
 from abc import ABC, abstractmethod
+from functools import wraps
 from typing import Dict, Any, List
 import urllib.request
 import logging
+
+from .barcode_utils import add_barcode_fields
 
 logger = logging.getLogger(__name__)
 class BaseReceiptParser(ABC):
     def __init__(self, store_name: str) -> None:
         self.store_name: str = store_name
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Every parser's parse() result gets the generic barcode fields (barcode_utils.describe_barcode) on each
+        item - new keys only, nothing existing changes - so new parsers get them without extra code."""
+        super().__init_subclass__(**kwargs)
+        parse = cls.__dict__.get("parse")
+        if parse is not None and not getattr(parse, "_adds_barcode_fields", False):
+            @wraps(parse)
+            def parse_with_barcodes(self, *args: Any, **kw: Any) -> Any:
+                return add_barcode_fields(parse(self, *args, **kw))
+            parse_with_barcodes._adds_barcode_fields = True  # type: ignore[attr-defined]
+            cls.parse = parse_with_barcodes  # type: ignore[assignment]
 
     @abstractmethod
     def parse(self, url: str) -> Dict[str, Any]:
